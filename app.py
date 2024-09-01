@@ -1,68 +1,51 @@
 import gradio as gr
 import os
 import time
+from pdf import generate_summary, generate_text, generate_answer
 
-from chat import chat, chat_stream
-from search import search
 # Chatbot demo with multimodal input (text, markdown, LaTeX, code blocks, image, audio, & video). Plus shows support for streaming text.
 
 messages = []
 current_file_text = None
 
 def add_text(history, text):
-    global messages
-    user_input = {"role": "user", "content": text}
-    messages.append(user_input)
+    """
+    TODO
+    """
     history = history + [(text, None)]
     return history, gr.update(value="", interactive=False)
-
 
 
 def add_file(history, file):
     """
     TODO
     """
+    if file.name.endswith(".txt"):
+        with open(file.name, "r", encoding="utf-8") as f:
+            current_file_text = f.read()
+            prompt = generate_summary(current_file_text)
+    
+    print("current_file_text: ", current_file_text)
+    user_input = {"role": "user", "content": prompt}
+    messages.append(user_input)
     history = history + [((file.name,), None)]
     return history
 
 
 def bot(history):
-    # 普通聊天模式
-    # global messages
-    # # 调用 chat 函数生成回复
-    # assistant_reply = chat(messages)
+    """
+    TODO
+    """
+    content = str(messages[-1]["content"])
     
-    # # 更新 history 中最后一条记录的 AI 回复部分
-    # history[-1][1] = assistant_reply
+    if(content.startswith("Summarize")):
+        response = generate_text(content)
+    elif(content.startswith("/file")):
+        messages[-1]["content"] = generate_answer(current_file_text, content)
+        response = generate_text(messages[-1]["content"])
     
-    # # 记录新的 assistant 回复到 messages 中
-    # messages.append({"role": "assistant", "content": assistant_reply})
-    
-    # return history
-
-    # 流式聊天模式
-    global messages
-    content = messages[-1]["content"]
-    if content.startswith("/search"):
-        # 提取 /search 指令后的内容
-        search_query = content[len("/search "):]
-        
-        # 调用 search 函数获取搜索结果
-        search_result = search(search_query)
-        
-        # 将搜索结果更新到 messages 中
-        messages.append({"role": "user", "content": search_result})
-    # 使用 chat_stream 函数生成流式回复
-    assistant_reply_stream = chat_stream(messages)
-    
-    assistant_reply = ""
-    for chunk in assistant_reply_stream:
-        assistant_reply += chunk["choices"][0]["delta"].get("content", "")
-        history[-1][1] = assistant_reply
-        yield history
-    
-    # 记录完整的 assistant 回复到 messages 中
-    messages.append({"role": "assistant", "content": assistant_reply})
+    history[-1][1] = response
+    return history
 
 with gr.Blocks() as demo:
     chatbot = gr.Chatbot(
